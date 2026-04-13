@@ -6,7 +6,7 @@
 # Date: April 2025
 ################################################################################
 
-ARG BUILD_FROM
+ARG BUILD_FROM=ghcr.io/home-assistant/base:3.21
 FROM $BUILD_FROM
 
 # Install Luakit and necessary dependencies
