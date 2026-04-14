@@ -66,12 +66,9 @@ webview.add_signal("init", function(view)
             first_window = false
         end
 
-        -- Set up auto-login for Home Assistant
-        -- Check if the current URL matches the Home Assistant auth page
+        -- Auto-login when the Home Assistant auth page is detected
         local auth_pattern = "^" .. ha_url .. "/auth/authorize%?response_type=code"
         if v.uri:match(auth_pattern) then
-            -- JavaScript to auto-fill and submit the login form
-            -- Uses Shadow DOM traversal since HA uses web components
             local js_auto_login = string.format([[
                 (function() {
                     function deepQuery(root, selector) {
@@ -86,43 +83,89 @@ webview.add_signal("init", function(view)
                         }
                         return null;
                     }
+
                     var nativeSetter = Object.getOwnPropertyDescriptor(
                         HTMLInputElement.prototype, 'value'
                     ).set;
-                    var attempts = 0;
-                    var maxAttempts = 50;
-                    var pollInterval = %d;
-                    var interval = setInterval(function() {
-                        attempts++;
-                        var usernameField = deepQuery(document, 'input[name="username"]');
-                        var passwordField = deepQuery(document, 'input[name="password"]');
-                        if (usernameField && passwordField) {
-                            clearInterval(interval);
-                            nativeSetter.call(usernameField, "%s");
-                            nativeSetter.call(passwordField, "%s");
-                            usernameField.dispatchEvent(new Event('input', {bubbles: true, composed: true}));
-                            usernameField.dispatchEvent(new Event('change', {bubbles: true, composed: true}));
-                            passwordField.dispatchEvent(new Event('input', {bubbles: true, composed: true}));
-                            passwordField.dispatchEvent(new Event('change', {bubbles: true, composed: true}));
-                            setTimeout(function() {
-                                var submit = deepQuery(document, 'mwc-button')
-                                    || deepQuery(document, 'ha-button')
-                                    || deepQuery(document, 'button[type="submit"]');
-                                if (submit) {
-                                    submit.click();
-                                } else {
-                                    passwordField.dispatchEvent(new KeyboardEvent('keydown', {
-                                        key: 'Enter', code: 'Enter', keyCode: 13,
-                                        bubbles: true, composed: true
-                                    }));
-                                }
-                            }, 500);
+
+                    function setFieldValue(field, value) {
+                        nativeSetter.call(field, value);
+                        field.dispatchEvent(new Event('input', {bubbles: true, composed: true}));
+                        field.dispatchEvent(new Event('change', {bubbles: true, composed: true}));
+                        field.dispatchEvent(new InputEvent('input', {
+                            bubbles: true, composed: true, inputType: 'insertText', data: value
+                        }));
+                    }
+
+                    function findField(nameSelector, typeSelector) {
+                        return deepQuery(document, nameSelector)
+                            || deepQuery(document, typeSelector);
+                    }
+
+                    function clickSubmit() {
+                        var submit = deepQuery(document, 'mwc-button')
+                            || deepQuery(document, 'ha-button')
+                            || deepQuery(document, 'button[type="submit"]');
+                        if (submit) {
+                            submit.click();
+                            return true;
                         }
-                        if (attempts >= maxAttempts) clearInterval(interval);
+                        return false;
+                    }
+
+                    function attemptLogin() {
+                        var usernameField = findField(
+                            'input[name="username"]', 'input[type="text"]'
+                        );
+                        var passwordField = findField(
+                            'input[name="password"]', 'input[type="password"]'
+                        );
+                        if (!usernameField || !passwordField) return false;
+
+                        setFieldValue(usernameField, "%s");
+                        setFieldValue(passwordField, "%s");
+
+                        setTimeout(function() {
+                            if (!clickSubmit()) {
+                                passwordField.dispatchEvent(new KeyboardEvent('keydown', {
+                                    key: 'Enter', code: 'Enter', keyCode: 13,
+                                    bubbles: true, composed: true
+                                }));
+                            }
+                        }, 500);
+                        return true;
+                    }
+
+                    var loginAttempts = 0;
+                    var maxLoginAttempts = 3;
+                    var pollAttempts = 0;
+                    var maxPollAttempts = 50;
+                    var pollInterval = %d;
+
+                    var interval = setInterval(function() {
+                        pollAttempts++;
+                        if (attemptLogin()) {
+                            clearInterval(interval);
+                            loginAttempts++;
+                            if (loginAttempts < maxLoginAttempts) {
+                                setTimeout(function() {
+                                    if (window.location.href.indexOf('/auth/authorize') !== -1) {
+                                        pollAttempts = 0;
+                                        interval = setInterval(function() {
+                                            pollAttempts++;
+                                            if (attemptLogin() || pollAttempts >= maxPollAttempts) {
+                                                clearInterval(interval);
+                                            }
+                                        }, pollInterval);
+                                    }
+                                }, 3000);
+                            }
+                        }
+                        if (pollAttempts >= maxPollAttempts) clearInterval(interval);
                     }, pollInterval);
                 })();
-            ]], login_delay * 1000 / 50, escape_for_javascript(username), escape_for_javascript(password))
-            v:eval_js(js_auto_login, { source = "auto_login.js" })  -- Execute the login script
+            ]], escape_for_javascript(username), escape_for_javascript(password), login_delay * 1000 / 50)
+            v:eval_js(js_auto_login, { source = "auto_login.js" })
         end
 
         -- Set up periodic page refresh if browser_refresh is positive
