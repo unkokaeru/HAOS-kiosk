@@ -1,13 +1,13 @@
 --[[
 Add-on: HAOS Kiosk Display (haoskiosk)
 File: userconf.lua for HA minimal browser run on server
-Version: 1.3.1
+Version: 1.4.0
 Originally by Jeff Kosowsky, maintained by William Fayers
 Date: April 2026
 
 Code does the following:
     - Sets browser window to fullscreen
-   - Sets zoom level to value of $ZOOM_LEVEL (default 100%)
+    - Sets zoom level to value of $ZOOM_LEVEL (default 100%)
     - Starts first window in 'passthrough' mode so that you can type text as needed without
       triggering browser commands
     - Auto-logs in to Home Assistant using $HA_USERNAME and $HA_PASSWORD
@@ -209,4 +209,3 @@ modes.get_modes()["passthrough"].enter = function(w)
     w.view.can_focus = true   -- Ensure the webview can receive focus
     w.view:focus()            -- Focus the webview for keyboard input
 end
-

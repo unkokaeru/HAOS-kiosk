@@ -6,9 +6,9 @@ trap '[ -n "$(jobs -p)" ] && kill $(jobs -p); [ -n "$TTY0_DELETED" ] && mknod -m
 ################################################################################
 # Add-on: HAOS Kiosk Display (haoskiosk)
 # File: run.sh
-# Version: 1.3.1
+# Version: 1.4.0
 # Originally by Jeff Kosowsky, maintained by William Fayers
-# Date: April 2025
+# Date: April 2026
 #
 #  Code does the following:
 #     - Import and sanity-check the following variables from HA/config.yaml
@@ -20,6 +20,7 @@ trap '[ -n "$(jobs -p)" ] && kill $(jobs -p); [ -n "$TTY0_DELETED" ] && mknod -m
 #         ZOOM_LEVEL
 #         BROWSER_REFRESH
 #         SCREEN_TIMEOUT
+#         SCREEN_BRIGHTNESS
 #         HDMI_PORT
 #     - Hack to delete (and later restore) /dev/tty0 (needed for X to start)
 #     - Start X window system
@@ -108,8 +109,8 @@ for event_device in /dev/input/event*; do
 done
 
 # Fallback: if no pointer found use second device; if no keyboard found use first
-FIRST_DEVICE=$(echo $ALL_DEVICES | awk '{print $1}')
-SECOND_DEVICE=$(echo $ALL_DEVICES | awk '{print $2}')
+FIRST_DEVICE=$(echo "$ALL_DEVICES" | awk '{print $1}')
+SECOND_DEVICE=$(echo "$ALL_DEVICES" | awk '{print $2}')
 : "${KEYBOARD_DEVICE:=${FIRST_DEVICE}}"
 : "${POINTER_DEVICE:=${SECOND_DEVICE:-${FIRST_DEVICE}}}"
 
@@ -188,12 +189,11 @@ fi
 #Note: need to use the version in util-linux, not busybox
 if [ -e "/dev/tty0" ]; then
     bashio::log.info "Attempting to (temporarily) delete /dev/tty0..."
-    mount -o remount,rw /dev
     if ! mount -o remount,rw /dev ; then
         bashio::log.error "Failed to remount /dev as read-write..."
         exit 1
     fi
-    if  ! rm /dev/tty0 ; then
+    if ! rm /dev/tty0 ; then
         mount -o remount,ro /dev
         bashio::log.error "Failed to delete /dev/tty0..."
         exit 1
@@ -241,7 +241,7 @@ fi
 
 #Restore /dev/tty0 and 'ro' mode for /dev if deleted
 if [ -n "$TTY0_DELETED" ]; then
-    if ( mknod -m 620 /dev/tty0 c 4 0 &&  mount -o remount,ro /dev ); then
+    if ( mknod -m 620 /dev/tty0 c 4 0 && mount -o remount,ro /dev ); then
         bashio::log.info "Restored /dev/tty0 successfully..."
     else
         bashio::log.error "Failed to restore /dev/tty0 and remount /dev/ read only..."
