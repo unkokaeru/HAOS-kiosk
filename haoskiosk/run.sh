@@ -6,7 +6,7 @@ trap '[ -n "$(jobs -p)" ] && kill $(jobs -p); [ -n "$TTY0_DELETED" ] && mknod -m
 ################################################################################
 # Add-on: HAOS Kiosk Display (haoskiosk)
 # File: run.sh
-# Version: 1.5.1
+# Version: 1.6.0
 # Originally by Jeff Kosowsky, maintained by William Fayers
 # Date: April 2026
 #
@@ -303,7 +303,7 @@ else
     bashio::log.info "Screen timeout after $SCREEN_TIMEOUT seconds..."
 fi
 
-### Configure display resolution and brightness via xrandr
+### Configure display resolution via xrandr
 XRANDR_OUTPUT=$(xrandr --query 2>/dev/null | grep ' connected' | head -1 | awk '{print $1}') || true
 if [ -n "$XRANDR_OUTPUT" ]; then
     bashio::log.info "Display output detected: ${XRANDR_OUTPUT}"
@@ -355,27 +355,53 @@ if [ -n "$XRANDR_OUTPUT" ]; then
             bashio::log.info "Display already at preferred resolution: ${CURRENT_MODE}"
         fi
     fi
+else
+    bashio::log.warning "No display output detected by xrandr — skipping resolution configuration..."
+fi
 
-    # Software brightness adjustment (requires modesetting driver for xrandr gamma ramp)
-    if [ "$SCREEN_BRIGHTNESS" -ne 100 ]; then
-        if [ -n "$USE_MODESETTING" ]; then
-            BRIGHTNESS_VALUE=$(awk "BEGIN {printf \"%.2f\", ${SCREEN_BRIGHTNESS} / 100}") || true
-            if [ -n "$BRIGHTNESS_VALUE" ] && xrandr --output "$XRANDR_OUTPUT" --brightness "$BRIGHTNESS_VALUE" 2>/dev/null; then
-                bashio::log.info "Screen brightness set to ${SCREEN_BRIGHTNESS}%..."
-            else
-                bashio::log.warning "Failed to set screen brightness via xrandr."
-                bashio::log.warning "Use physical monitor controls to adjust brightness."
+### Configure screen brightness
+if [ "$SCREEN_BRIGHTNESS" -ne 100 ]; then
+    BRIGHTNESS_SET=""
+
+    # Method 1: sysfs backlight (RPi DSI displays, embedded panels)
+    BACKLIGHT_PATH=$(find /sys/class/backlight/ -maxdepth 1 -mindepth 1 2>/dev/null | head -1) || true
+    if [ -n "$BACKLIGHT_PATH" ] && [ -z "$BRIGHTNESS_SET" ]; then
+        MAX_BR=$(cat "${BACKLIGHT_PATH}/max_brightness" 2>/dev/null) || true
+        if [ -n "$MAX_BR" ] && [ "$MAX_BR" -gt 0 ]; then
+            TARGET_BR=$((SCREEN_BRIGHTNESS * MAX_BR / 100))
+            if echo "$TARGET_BR" > "${BACKLIGHT_PATH}/brightness" 2>/dev/null; then
+                bashio::log.info "Screen brightness set to ${SCREEN_BRIGHTNESS}% via backlight ($(basename "$BACKLIGHT_PATH"))..."
+                BRIGHTNESS_SET=1
             fi
-        else
-            bashio::log.warning "Screen brightness control requires the modesetting driver (currently using fbdev)."
-            bashio::log.warning "To enable: ensure /dev/dri/card* devices are available (requires KMS/DRI)."
-            bashio::log.warning "To reduce brightness, use physical monitor controls or RPi firmware settings."
         fi
-    else
-        bashio::log.info "Screen brightness at 100% (default)..."
+    fi
+
+    # Method 2: DDC/CI via ddcutil (external HDMI monitors)
+    if [ -z "$BRIGHTNESS_SET" ] && command -v ddcutil >/dev/null 2>&1; then
+        modprobe i2c-dev 2>/dev/null || true
+        if ddcutil setvcp 10 "$SCREEN_BRIGHTNESS" --noverify 2>/dev/null; then
+            bashio::log.info "Screen brightness set to ${SCREEN_BRIGHTNESS}% via DDC/CI..."
+            BRIGHTNESS_SET=1
+        fi
+    fi
+
+    # Method 3: xrandr software brightness (modesetting driver only)
+    if [ -z "$BRIGHTNESS_SET" ] && [ -n "$USE_MODESETTING" ] && [ -n "$XRANDR_OUTPUT" ]; then
+        BRIGHTNESS_VALUE=$(awk "BEGIN {printf \"%.2f\", ${SCREEN_BRIGHTNESS} / 100}") || true
+        if [ -n "$BRIGHTNESS_VALUE" ] && xrandr --output "$XRANDR_OUTPUT" --brightness "$BRIGHTNESS_VALUE" 2>/dev/null; then
+            bashio::log.info "Screen brightness set to ${SCREEN_BRIGHTNESS}% via xrandr..."
+            BRIGHTNESS_SET=1
+        fi
+    fi
+
+    # No method worked
+    if [ -z "$BRIGHTNESS_SET" ]; then
+        bashio::log.warning "Could not set screen brightness — no supported method available."
+        bashio::log.warning "Tried: sysfs backlight, DDC/CI (ddcutil), xrandr software brightness."
+        bashio::log.warning "Ensure /dev/i2c-* is available for DDC/CI monitor control."
     fi
 else
-    bashio::log.warning "No display output detected by xrandr — skipping resolution and brightness..."
+    bashio::log.info "Screen brightness at 100% (default)..."
 fi
 
 ### Run Luakit in the foreground

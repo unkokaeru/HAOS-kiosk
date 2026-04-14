@@ -44,6 +44,6 @@ configuration:
   screen_brightness:
     name: "Screen Brightness"
     description: |
-      Software brightness level from 0 to 100 [Default: 100]
-      Note: Requires the modesetting display driver (auto-selected when /dev/dri/card*
-      is available). Has no effect with the fbdev driver — use physical monitor controls instead
+      Brightness level from 0 to 100 [Default: 100]
+      Note: Tries sysfs backlight, DDC/CI (ddcutil), and xrandr in order.
+      For DDC/CI, ensure /dev/i2c-* is available. Check logs for which method was used

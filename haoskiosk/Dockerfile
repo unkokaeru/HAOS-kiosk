@@ -1,7 +1,7 @@
 ################################################################################
 # Add-on: HAOS Kiosk Display (haoskiosk)
 # File: Dockerfile
-# Version: 1.5.1
+# Version: 1.6.0
 # Originally by Jeff Kosowsky, maintained by William Fayers
 # Date: April 2026
 ################################################################################
@@ -23,6 +23,7 @@ RUN apk update && apk add --no-cache \
     xrandr \
     xinput \
     bash \
+    ddcutil \
     mesa-gles \
     mesa-egl \
     && rm -rf /var/cache/apk/*
