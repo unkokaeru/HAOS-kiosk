@@ -1,5 +1,19 @@
 # Changelog
 
+## v1.1.0 – April 2026
+
+- Dynamic input device detection at startup — all `/dev/input/event*` devices are now
+  auto-configured with libinput, replacing fragile hardcoded evdev mappings
+- Touchscreen, touchpad, keyboard, and mouse are all handled automatically regardless
+  of device numbering
+- Added `-allowMouseOpenFail` flag to Xorg for resilience when devices are absent
+- Added `AllowEmptyInput` fallback when no input devices are found
+- Auto-login now retries up to 3 times if the auth page persists after submission
+- Added fallback field selectors (`input[type="text"]`, `input[type="password"]`) for
+  broader compatibility with Home Assistant UI variants
+- Added `InputEvent` dispatch alongside `Event` for framework compatibility
+- Removed hardcoded `InputDevice` and `ServerLayout` sections from `xorg.conf`
+
 ## v1.0.0 – April 2026
 
 - Forked from [puterboy/HAOS-kiosk](https://github.com/puterboy/HAOS-kiosk) by Jeff Kosowsky
