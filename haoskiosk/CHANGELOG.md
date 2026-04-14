@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.5.1 – April 2026
+
+- Fixed screen brightness control: removed broken xgamma gamma-correction fallback that
+  destroyed contrast, brightness now correctly only applied via xrandr when modesetting
+  driver is active, clear warnings logged when fbdev driver cannot support software brightness
+- Removed unused `xgamma` package from Docker image
+- Updated documentation with brightness troubleshooting guidance
+
 ## v1.5.0 – April 2026
 
 - Added `screen_resolution` configuration option with xrandr mode override and cvt modeline

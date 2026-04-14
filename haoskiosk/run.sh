@@ -6,7 +6,7 @@ trap '[ -n "$(jobs -p)" ] && kill $(jobs -p); [ -n "$TTY0_DELETED" ] && mknod -m
 ################################################################################
 # Add-on: HAOS Kiosk Display (haoskiosk)
 # File: run.sh
-# Version: 1.5.0
+# Version: 1.5.1
 # Originally by Jeff Kosowsky, maintained by William Fayers
 # Date: April 2026
 #
@@ -356,18 +356,23 @@ if [ -n "$XRANDR_OUTPUT" ]; then
         fi
     fi
 
-    # Software brightness adjustment
-    BRIGHTNESS_VALUE=$(awk "BEGIN {printf \"%.2f\", ${SCREEN_BRIGHTNESS} / 100}") || true
-    if [ -n "$BRIGHTNESS_VALUE" ] && xrandr --output "$XRANDR_OUTPUT" --brightness "$BRIGHTNESS_VALUE" 2>/dev/null; then
-        bashio::log.info "Screen brightness set to ${SCREEN_BRIGHTNESS}%..."
-    else
-        # Try xgamma as fallback for contrast/brightness
-        GAMMA_VALUE=$(awk "BEGIN {printf \"%.2f\", ${SCREEN_BRIGHTNESS} / 100}") || true
-        if [ -n "$GAMMA_VALUE" ] && xgamma -gamma "$GAMMA_VALUE" 2>/dev/null; then
-            bashio::log.info "Screen brightness set to ${SCREEN_BRIGHTNESS}% via gamma..."
+    # Software brightness adjustment (requires modesetting driver for xrandr gamma ramp)
+    if [ "$SCREEN_BRIGHTNESS" -ne 100 ]; then
+        if [ -n "$USE_MODESETTING" ]; then
+            BRIGHTNESS_VALUE=$(awk "BEGIN {printf \"%.2f\", ${SCREEN_BRIGHTNESS} / 100}") || true
+            if [ -n "$BRIGHTNESS_VALUE" ] && xrandr --output "$XRANDR_OUTPUT" --brightness "$BRIGHTNESS_VALUE" 2>/dev/null; then
+                bashio::log.info "Screen brightness set to ${SCREEN_BRIGHTNESS}%..."
+            else
+                bashio::log.warning "Failed to set screen brightness via xrandr."
+                bashio::log.warning "Use physical monitor controls to adjust brightness."
+            fi
         else
-            bashio::log.info "Software brightness not supported by driver — skipping..."
+            bashio::log.warning "Screen brightness control requires the modesetting driver (currently using fbdev)."
+            bashio::log.warning "To enable: ensure /dev/dri/card* devices are available (requires KMS/DRI)."
+            bashio::log.warning "To reduce brightness, use physical monitor controls or RPi firmware settings."
         fi
+    else
+        bashio::log.info "Screen brightness at 100% (default)..."
     fi
 else
     bashio::log.warning "No display output detected by xrandr — skipping resolution and brightness..."

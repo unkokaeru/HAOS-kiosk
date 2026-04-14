@@ -44,7 +44,7 @@ All options are found in the add-on's **Configuration** tab.
 | **HDMI Port** | `0` | HDMI output port (`0` or `1`). On stock HAOS on RPi, HDMI0 is mirrored to HDMI1. |
 | **Screen Timeout** | `600` seconds | Time before the screen blanks. Set to `0` to disable. |
 | **Screen Resolution** | `""` (auto) | Force a specific resolution (e.g., `1920x1080`). Leave empty for automatic detection. On RPi with fbdev, resolution is set by `config.txt` — see troubleshooting. |
-| **Screen Brightness** | `100`% | Software brightness via xrandr. `100` is full brightness, `0` is black. Not all drivers support this. |
+| **Screen Brightness** | `100`% | Software brightness via xrandr (0–100). Requires the modesetting driver — has no effect with fbdev. Use physical monitor controls if unsupported. |
 | **Browser Refresh** | `600` seconds | Interval between browser refreshes. Set to `0` to disable. Recommended to keep enabled as console errors may overwrite the dashboard on RPi. |
 | **Zoom Level** | `100`% | Browser zoom level. |
 
@@ -75,6 +75,13 @@ If the touchscreen device index is above 19, please [open an issue](https://gith
 ### Display does not appear
 
 Reboot the Raspberry Pi with the display attached via HDMI. The framebuffer must be initialised at boot time.
+
+### Screen brightness setting has no effect
+
+Software brightness requires the **modesetting** display driver, which is auto-selected when `/dev/dri/card*` devices are available. If the add-on falls back to the `fbdev` driver (check logs for "using fbdev driver"), software brightness cannot be applied.
+
+- **RPi with KMS enabled** — modesetting should work. Check that `/dev/dri/card0` exists.
+- **RPi without KMS** — the fbdev driver is used and brightness control is unavailable. Use the physical controls on your monitor, or adjust backlight via RPi firmware (`/mnt/boot/config.txt`).
 
 ## Usage Notes
 

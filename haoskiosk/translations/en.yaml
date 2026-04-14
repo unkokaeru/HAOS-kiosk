@@ -45,4 +45,5 @@ configuration:
     name: "Screen Brightness"
     description: |
       Software brightness level from 0 to 100 [Default: 100]
-      Note: Uses xrandr software brightness — 100 is full brightness, 0 is black
+      Note: Requires the modesetting display driver (auto-selected when /dev/dri/card*
+      is available). Has no effect with the fbdev driver — use physical monitor controls instead
