@@ -21,6 +21,8 @@ RUN apk update && apk add --no-cache \
     util-linux \
     xset \
     bash \
+    mesa-gles \
+    mesa-egl \
     && rm -rf /var/cache/apk/*
 
 # Set the display and dbus environment variables
