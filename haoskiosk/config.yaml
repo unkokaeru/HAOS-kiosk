@@ -44,6 +44,17 @@ devices:
   - /dev/hidraw2
   - /dev/hidraw3
   - /dev/hidraw4
+  - /dev/i2c-0
+  - /dev/i2c-1
+  - /dev/i2c-2
+  - /dev/i2c-3
+  - /dev/i2c-4
+  - /dev/i2c-5
+  - /dev/i2c-6
+  - /dev/i2c-7
+  - /dev/i2c-8
+  - /dev/i2c-9
+  - /dev/i2c-10
 
 privileged:
   - SYS_ADMIN

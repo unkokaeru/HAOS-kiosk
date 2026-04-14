@@ -2,10 +2,12 @@
 
 ## v1.5.1 – April 2026
 
-- Fixed screen brightness control: removed broken xgamma gamma-correction fallback that
-  destroyed contrast, brightness now correctly only applied via xrandr when modesetting
-  driver is active, clear warnings logged when fbdev driver cannot support software brightness
-- Removed unused `xgamma` package from Docker image
+- Replaced broken brightness control with a 3-method cascade: sysfs backlight (RPi DSI
+  displays), DDC/CI via ddcutil (external HDMI monitors), and xrandr software brightness
+  (modesetting driver) — each method is tried in order until one succeeds
+- Removed xgamma gamma-correction fallback that destroyed contrast by incorrectly mapping
+  brightness to gamma
+- Added `ddcutil` package and `/dev/i2c-*` device passthrough for DDC/CI monitor control
 - Updated documentation with brightness troubleshooting guidance
 
 ## v1.5.0 – April 2026

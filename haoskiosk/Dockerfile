@@ -23,6 +23,7 @@ RUN apk update && apk add --no-cache \
     xrandr \
     xinput \
     bash \
+    ddcutil \
     mesa-gles \
     mesa-egl \
     && rm -rf /var/cache/apk/*

@@ -14,7 +14,7 @@ This fork is maintained by **William Fayers** ([@unkokaeru](https://github.com/u
 - **Fixed auto-login** — Rewrote the JavaScript injection to correctly handle Home Assistant's Shadow DOM using the native `HTMLInputElement` setter, with retry/polling logic (up to 3 attempts).
 - **DRI/modesetting auto-detection** — Automatically switches from `fbdev` to `modesetting` driver when DRI/KMS devices are available, with graceful fallback to `fbdev` if `modesetting` fails.
 - **Web process crash recovery** — Automatically reloads the page after 2 seconds if the WebKit web process crashes.
-- **Configurable screen brightness** — Software brightness control via xrandr (0–100%).
+- **Configurable screen brightness** — Hardware and software brightness control via sysfs backlight, DDC/CI, or xrandr (0–100%).
 - **Expanded device support** — Supports up to 10 input devices (`event0`–`event9`) and DRI/GPU devices for proper resolution.
 - **Increased default login delay** — Changed from `1.0s` to `3.0s` for more reliable auto-login on slower hardware.
 
@@ -44,7 +44,7 @@ All options are found in the add-on's **Configuration** tab.
 | **HDMI Port** | `0` | HDMI output port (`0` or `1`). On stock HAOS on RPi, HDMI0 is mirrored to HDMI1. |
 | **Screen Timeout** | `600` seconds | Time before the screen blanks. Set to `0` to disable. |
 | **Screen Resolution** | `""` (auto) | Force a specific resolution (e.g., `1920x1080`). Leave empty for automatic detection. On RPi with fbdev, resolution is set by `config.txt` — see troubleshooting. |
-| **Screen Brightness** | `100`% | Software brightness via xrandr (0–100). Requires the modesetting driver — has no effect with fbdev. Use physical monitor controls if unsupported. |
+| **Screen Brightness** | `100`% | Display brightness (0–100). Tries sysfs backlight, DDC/CI (ddcutil), then xrandr in order. Check add-on logs to see which method was used. |
 | **Browser Refresh** | `600` seconds | Interval between browser refreshes. Set to `0` to disable. Recommended to keep enabled as console errors may overwrite the dashboard on RPi. |
 | **Zoom Level** | `100`% | Browser zoom level. |
 
@@ -78,10 +78,13 @@ Reboot the Raspberry Pi with the display attached via HDMI. The framebuffer must
 
 ### Screen brightness setting has no effect
 
-Software brightness requires the **modesetting** display driver, which is auto-selected when `/dev/dri/card*` devices are available. If the add-on falls back to the `fbdev` driver (check logs for "using fbdev driver"), software brightness cannot be applied.
+The add-on tries three brightness methods in order:
 
-- **RPi with KMS enabled** — modesetting should work. Check that `/dev/dri/card0` exists.
-- **RPi without KMS** — the fbdev driver is used and brightness control is unavailable. Use the physical controls on your monitor, or adjust backlight via RPi firmware (`/mnt/boot/config.txt`).
+1. **sysfs backlight** — works for RPi DSI displays and embedded panels. Check if `/sys/class/backlight/` has entries.
+2. **DDC/CI via ddcutil** — works for most external HDMI monitors. Requires `/dev/i2c-*` device access (included in device list). If your monitor doesn't respond, it may not support DDC/CI.
+3. **xrandr software brightness** — gamma ramp adjustment, only works with the modesetting driver (auto-selected when `/dev/dri/card*` is available).
+
+Check the add-on logs to see which method was attempted and whether it succeeded. If none work, your monitor may not support software brightness control — use the physical controls on the monitor itself.
 
 ## Usage Notes
 
