@@ -78,20 +78,42 @@ webview.add_signal("init", function(view)
         local auth_pattern = "^" .. ha_url .. "/auth/authorize%?response_type=code"
         if v.uri:match(auth_pattern) then
             -- JavaScript to auto-fill and submit the login form
+            -- Uses Shadow DOM traversal since HA uses web components
             local js_auto_login = string.format([[
-                setTimeout(function() {
-                    var usernameField = document.querySelector('input[name="username"]');
-                    var passwordField = document.querySelector('input[name="password"]');
-                    var submitButton = document.querySelector('mwc-button');
-                    if (usernameField && passwordField && submitButton) {
-                        usernameField.value = "%s";
-                        usernameField.dispatchEvent(new Event('input', { bubbles: true }));
-                        passwordField.value = "%s";
-                        passwordField.dispatchEvent(new Event('input', { bubbles: true }));
-                        submitButton.click();
+                (function() {
+                    function deepQuery(root, selector) {
+                        var result = root.querySelector(selector);
+                        if (result) return result;
+                        var elements = root.querySelectorAll('*');
+                        for (var i = 0; i < elements.length; i++) {
+                            if (elements[i].shadowRoot) {
+                                result = deepQuery(elements[i].shadowRoot, selector);
+                                if (result) return result;
+                            }
+                        }
+                        return null;
                     }
-                }, %d);
-            ]], username, password, login_delay * 1000)
+                    var attempts = 0;
+                    var maxAttempts = 50;
+                    var interval = setInterval(function() {
+                        attempts++;
+                        var usernameField = deepQuery(document, 'input[name="username"]');
+                        var passwordField = deepQuery(document, 'input[name="password"]');
+                        if (usernameField && passwordField) {
+                            clearInterval(interval);
+                            usernameField.value = "%s";
+                            passwordField.value = "%s";
+                            usernameField.dispatchEvent(new Event('input', {bubbles: true}));
+                            passwordField.dispatchEvent(new Event('input', {bubbles: true}));
+                            setTimeout(function() {
+                                var submit = deepQuery(document, 'mwc-button') || deepQuery(document, 'ha-button') || deepQuery(document, 'button[type="submit"]');
+                                if (submit) submit.click();
+                            }, 500);
+                        }
+                        if (attempts >= maxAttempts) clearInterval(interval);
+                    }, %d);
+                })();
+            ]], username, password, login_delay * 1000 / 50)
             v:eval_js(js_auto_login, { source = "auto_login.js" })  -- Execute the login script
         end
 

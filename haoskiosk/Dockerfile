@@ -15,6 +15,7 @@ RUN apk update && apk add --no-cache \
     xorg-server \
     xf86-video-fbdev \
     xf86-input-evdev \
+    xf86-input-libinput \
     openbox \
     ttf-dejavu \
     util-linux \

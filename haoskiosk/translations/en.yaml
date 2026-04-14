@@ -16,7 +16,7 @@ configuration:
   login_delay:
     name: "Login Delay"
     description: |
-      Time to wait for login page to load in seconds [Default: 1.0]
+      Time to wait for login page to load in seconds [Default: 3.0]
       Note: Often can set to '0'
   hdmi_port:
     name: "HDMI Port"
