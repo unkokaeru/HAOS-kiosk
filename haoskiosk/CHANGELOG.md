@@ -15,6 +15,6 @@
 - Initial public release
 - Added Zoom capability
 
-## 0.9.6 – March 2025
+## v0.9.6 – March 2025
 
 - Initial private release

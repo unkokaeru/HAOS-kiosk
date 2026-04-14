@@ -6,8 +6,8 @@ trap '[ -n "$(jobs -p)" ] && kill $(jobs -p); [ -n "$TTY0_DELETED" ] && mknod -m
 ################################################################################
 # Add-on: HAOS Kiosk Display (haoskiosk)
 # File: run.sh
-# Version: 0.9.7
-# Copyright Jeff Kosowsky
+# Version: 1.0.0
+# Originally by Jeff Kosowsky, maintained by William Fayers
 # Date: April 2025
 #
 #  Code does the following:
@@ -46,7 +46,7 @@ HA_DASHBOARD="${HA_DASHBOARD//null/}"
 
 LOGIN_DELAY=$(bashio::config 'login_delay')
 LOGIN_DELAY="${LOGIN_DELAY//null/}"
-LOGIN_DELAY="${LOGIN_DELAY:-2}"
+LOGIN_DELAY="${LOGIN_DELAY:-3}"
 
 ZOOM_LEVEL=$(bashio::config 'zoom_level')
 ZOOM_LEVEL="${ZOOM_LEVEL//null/}"
@@ -56,7 +56,7 @@ BROWSER_REFRESH=$(bashio::config 'browser_refresh')
 BROWSER_REFRESH="${BROWSER_REFRESH//null/}"
 BROWSER_REFRESH="${BROWSER_REFRESH:-600}" #Default to 600 seconds
 
-export HA_USERNAME HA_PASSWORD HA_URL HA_DASHBOARD LOGIN_DELAY ZOOM_LEVEL BROWSER_REFRESH #Referenced in 'userconfig.lua'
+export HA_USERNAME HA_PASSWORD HA_URL HA_DASHBOARD LOGIN_DELAY ZOOM_LEVEL BROWSER_REFRESH #Referenced in 'userconf.lua'
 
 SCREEN_TIMEOUT=$(bashio::config 'screen_timeout')
 SCREEN_TIMEOUT="${SCREEN_TIMEOUT//null/}"
@@ -105,7 +105,7 @@ fi
 Xorg "$DISPLAY" -layout "Layout${HDMI_PORT}" </dev/null &
 
 XSTARTUP=30
-for ((i=0; i<=XSTARTUP; i++)); do
+for ((attempt=0; attempt<=XSTARTUP; attempt++)); do
     if xset q >/dev/null 2>&1; then
         break
     fi

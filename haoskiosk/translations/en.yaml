@@ -1,7 +1,7 @@
 configuration:
   ha_username:
     name: "HA Username"
-    description: "Home Assistant login user name [required]"
+    description: "Home Assistant login username [required]"
   ha_password:
     name: "HA Password"
     description: "Home Assistant login password [required]"
@@ -17,12 +17,12 @@ configuration:
     name: "Login Delay"
     description: |
       Time to wait for login page to load in seconds [Default: 3.0]
-      Note: Often can set to '0'
+      Note: Can often be set to '0'
   hdmi_port:
     name: "HDMI Port"
     description: |
-      0 or HDMI1, 1 for HDMI2 [Default: 0]
-      Note: Doesn't work on default RPI HAOS since HDMI2 mirrors HDMI1
+      0 for HDMI1, 1 for HDMI2 [Default: 0]
+      Note: Does not work on default RPi HAOS since HDMI2 mirrors HDMI1
   screen_timeout:
     name: "Screen Timeout"
     description: "Time in seconds until screen blanks; 0 for never [Default: 600]"

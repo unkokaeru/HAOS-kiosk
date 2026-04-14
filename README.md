@@ -1,6 +1,6 @@
 # HAOS Kiosk
 
-A Home Assistant OS add-on that launches X-Windows on a local HAOS server followed by the OpenBox window manager and Luakit browser, displaying Home Assistant dashboards in kiosk mode directly on the server's attached display. Standard mouse, keyboard, and touchscreen interactions work automatically.
+A Home Assistant OS add-on that launches X-Windows on a local HAOS server followed by the Openbox window manager and Luakit browser, displaying Home Assistant dashboards in kiosk mode directly on the server's attached display. Standard mouse, keyboard, and touchscreen interactions work automatically.
 
 ## Attribution
 
