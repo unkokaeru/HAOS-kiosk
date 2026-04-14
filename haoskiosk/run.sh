@@ -82,6 +82,63 @@ dbus-daemon --session --address="$DBUS_SESSION_BUS_ADDRESS" &
 ### Start Xorg in the background
 rm -rf /tmp/.X*-lock #Cleanup old versions
 
+### Dynamically detect and configure input devices for Xorg
+bashio::log.info "Detecting input devices..."
+XORG_INPUT_DIR="/etc/X11/xorg.conf.d"
+mkdir -p "$XORG_INPUT_DIR"
+XORG_INPUT_CONF="${XORG_INPUT_DIR}/10-input-devices.conf"
+: > "$XORG_INPUT_CONF"
+
+DEVICE_COUNT=0
+LAYOUT_LINES=""
+for event_device in /dev/input/event*; do
+    [ -e "$event_device" ] || continue
+    DEVICE_COUNT=$((DEVICE_COUNT + 1))
+    device_id="Input${DEVICE_COUNT}"
+
+    if [ "$DEVICE_COUNT" -eq 1 ]; then
+        role='"CoreKeyboard"'
+    elif [ "$DEVICE_COUNT" -eq 2 ]; then
+        role='"CorePointer"'
+    else
+        role='"SendCoreEvents"'
+    fi
+
+    cat >> "$XORG_INPUT_CONF" << INPUTEOF
+Section "InputDevice"
+    Identifier    "${device_id}"
+    Driver        "libinput"
+    Option        "Device" "${event_device}"
+EndSection
+
+INPUTEOF
+
+    LAYOUT_LINES="${LAYOUT_LINES}    InputDevice    \"${device_id}\" ${role}
+"
+done
+
+if [ "$DEVICE_COUNT" -eq 0 ]; then
+    bashio::log.warning "No input devices found — adding AllowEmptyInput..."
+    cat >> "$XORG_INPUT_CONF" << EMPTYEOF
+Section "ServerFlags"
+    Option "AllowEmptyInput" "on"
+EndSection
+
+EMPTYEOF
+fi
+
+for layout_index in 0 1; do
+    cat >> "$XORG_INPUT_CONF" << LAYOUTEOF
+Section "ServerLayout"
+    Identifier     "Layout${layout_index}"
+    Screen         "Screen${layout_index}" 0 0
+${LAYOUT_LINES}EndSection
+
+LAYOUTEOF
+done
+
+bashio::log.info "Configured ${DEVICE_COUNT} input device(s)..."
+
 #Note first need to delete /dev/tty0 since X won't start if it is there,
 #because X doesn't have permissions to access it in the container
 #First, remount /dev as read-write since X absolutely, must have /dev/tty access
@@ -102,7 +159,7 @@ if [ -e "/dev/tty0" ]; then
     bashio::log.info "Deleted /dev/tty0 successfully..."
 fi
 
-Xorg "$DISPLAY" -layout "Layout${HDMI_PORT}" </dev/null &
+Xorg "$DISPLAY" -allowMouseOpenFail -layout "Layout${HDMI_PORT}" </dev/null &
 
 XSTARTUP=30
 for ((attempt=0; attempt<=XSTARTUP; attempt++)); do
