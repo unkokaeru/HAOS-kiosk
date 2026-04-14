@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.1.2 – April 2026
+
+- Installed `mesa-gles` and `mesa-egl` to provide `libGLESv2.so.2` — prevents WebKit
+  GPU process crash when rendering the Home Assistant dashboard
+- Added automatic page reload on web process crash (2-second delay)
+
 ## v1.1.1 – April 2026
 
 - Switched dynamic input devices from `libinput` to `evdev` driver — `libinput` requires
