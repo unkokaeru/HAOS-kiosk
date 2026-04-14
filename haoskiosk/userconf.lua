@@ -57,6 +57,17 @@ settings.webview.zoom_level = zoom_level
 -- -----------------------------------------------------------------------
 local first_window = true
 webview.add_signal("init", function(view)
+    -- Auto-reload on web process crash
+    view:add_signal("crashed", function(v)
+        local timer = require "lousy.util".timer
+        local reload_timer = timer{interval = 2000}
+        reload_timer:add_signal("timeout", function()
+            reload_timer:stop()
+            v:reload()
+        end)
+        reload_timer:start()
+    end)
+
     -- Listen for page load events
     view:add_signal("load-status", function(v, status)
         if status ~= "finished" then return end  -- Only proceed when the page is fully loaded
