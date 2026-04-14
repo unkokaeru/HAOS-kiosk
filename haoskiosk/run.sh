@@ -215,16 +215,24 @@ else
 fi
 
 ### Configure display resolution and brightness via xrandr
-XRANDR_OUTPUT=$(xrandr --query 2>/dev/null | grep ' connected' | head -1 | awk '{print $1}')
+# Note: fbdev driver has limited xrandr support; resolution is primarily
+# controlled by the RPi firmware (config.txt). These calls are best-effort.
+XRANDR_OUTPUT=$(xrandr --query 2>/dev/null | grep ' connected' | head -1 | awk '{print $1}') || true
 if [ -n "$XRANDR_OUTPUT" ]; then
-    PREFERRED_MODE=$(xrandr --query 2>/dev/null | grep -A1 "^${XRANDR_OUTPUT}" | tail -1 | awk '{print $1}')
+    PREFERRED_MODE=$(xrandr --query 2>/dev/null | grep -A1 "^${XRANDR_OUTPUT}" | tail -1 | awk '{print $1}') || true
     if [ -n "$PREFERRED_MODE" ]; then
-        xrandr --output "$XRANDR_OUTPUT" --mode "$PREFERRED_MODE" 2>/dev/null
-        bashio::log.info "Display resolution set to ${PREFERRED_MODE} on ${XRANDR_OUTPUT}..."
+        if xrandr --output "$XRANDR_OUTPUT" --mode "$PREFERRED_MODE" 2>/dev/null; then
+            bashio::log.info "Display resolution set to ${PREFERRED_MODE} on ${XRANDR_OUTPUT}..."
+        else
+            bashio::log.info "Display using native resolution (mode switching not supported by driver)..."
+        fi
     fi
-    BRIGHTNESS_VALUE=$(awk "BEGIN {printf \"%.2f\", ${SCREEN_BRIGHTNESS} / 100}")
-    xrandr --output "$XRANDR_OUTPUT" --brightness "$BRIGHTNESS_VALUE" 2>/dev/null
-    bashio::log.info "Screen brightness set to ${SCREEN_BRIGHTNESS}%..."
+    BRIGHTNESS_VALUE=$(awk "BEGIN {printf \"%.2f\", ${SCREEN_BRIGHTNESS} / 100}") || true
+    if [ -n "$BRIGHTNESS_VALUE" ] && xrandr --output "$XRANDR_OUTPUT" --brightness "$BRIGHTNESS_VALUE" 2>/dev/null; then
+        bashio::log.info "Screen brightness set to ${SCREEN_BRIGHTNESS}%..."
+    else
+        bashio::log.info "Software brightness not supported by driver — skipping..."
+    fi
 else
     bashio::log.warning "No display output detected by xrandr — skipping resolution and brightness..."
 fi
