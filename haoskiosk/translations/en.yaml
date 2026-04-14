@@ -26,6 +26,13 @@ configuration:
   screen_timeout:
     name: "Screen Timeout"
     description: "Time in seconds until screen blanks; 0 for never [Default: 600]"
+  screen_resolution:
+    name: "Screen Resolution"
+    description: |
+      Force a specific resolution (e.g., "1920x1080") [Default: "" (auto)]
+      Note: Leave empty for automatic detection. On RPi with fbdev driver,
+      resolution is primarily set by config.txt — this option attempts an
+      xrandr override but may not work with all drivers
   browser_refresh:
     name: "Browser Refresh"
     description: |

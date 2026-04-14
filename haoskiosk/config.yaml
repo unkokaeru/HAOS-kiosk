@@ -1,7 +1,7 @@
 name: "HAOS Kiosk Display"
 description: >
   Start X server and browser on local HAOS server and display dashboards in kiosk mode
-version: "1.4.0"
+version: "1.5.0"
 slug: "haoskiosk"
 
 arch:
@@ -29,6 +29,21 @@ devices:
   - /dev/input/event7
   - /dev/input/event8
   - /dev/input/event9
+  - /dev/input/event10
+  - /dev/input/event11
+  - /dev/input/event12
+  - /dev/input/event13
+  - /dev/input/event14
+  - /dev/input/event15
+  - /dev/input/event16
+  - /dev/input/event17
+  - /dev/input/event18
+  - /dev/input/event19
+  - /dev/hidraw0
+  - /dev/hidraw1
+  - /dev/hidraw2
+  - /dev/hidraw3
+  - /dev/hidraw4
 
 privileged:
   - SYS_ADMIN
@@ -41,6 +56,7 @@ options:
   login_delay: 3.0
   hdmi_port: 0
   screen_timeout: 600
+  screen_resolution: ""
   browser_refresh: 600
   zoom_level: 100
   screen_brightness: 100
@@ -53,6 +69,7 @@ schema:
   login_delay: float(0,)
   hdmi_port: int(0,1)
   screen_timeout: int(0,)
+  screen_resolution: str?
   browser_refresh: int(0,)
   zoom_level: int(0,)
   screen_brightness: int(0,100)

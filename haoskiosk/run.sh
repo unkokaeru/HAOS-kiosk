@@ -6,7 +6,7 @@ trap '[ -n "$(jobs -p)" ] && kill $(jobs -p); [ -n "$TTY0_DELETED" ] && mknod -m
 ################################################################################
 # Add-on: HAOS Kiosk Display (haoskiosk)
 # File: run.sh
-# Version: 1.4.0
+# Version: 1.5.0
 # Originally by Jeff Kosowsky, maintained by William Fayers
 # Date: April 2026
 #
@@ -21,6 +21,7 @@ trap '[ -n "$(jobs -p)" ] && kill $(jobs -p); [ -n "$TTY0_DELETED" ] && mknod -m
 #         BROWSER_REFRESH
 #         SCREEN_TIMEOUT
 #         SCREEN_BRIGHTNESS
+#         SCREEN_RESOLUTION
 #         HDMI_PORT
 #     - Hack to delete (and later restore) /dev/tty0 (needed for X to start)
 #     - Start X window system
@@ -67,6 +68,9 @@ SCREEN_BRIGHTNESS=$(bashio::config 'screen_brightness')
 SCREEN_BRIGHTNESS="${SCREEN_BRIGHTNESS//null/}"
 SCREEN_BRIGHTNESS="${SCREEN_BRIGHTNESS:-100}" #Default to 100%
 
+SCREEN_RESOLUTION=$(bashio::config 'screen_resolution')
+SCREEN_RESOLUTION="${SCREEN_RESOLUTION//null/}"
+
 HDMI_PORT=$(bashio::config 'hdmi_port')
 HDMI_PORT="${HDMI_PORT//null/}"
 HDMI_PORT="${HDMI_PORT:-0}"
@@ -99,14 +103,24 @@ for event_device in /dev/input/event*; do
     [ -e "$event_device" ] || continue
     ALL_DEVICES="${ALL_DEVICES} ${event_device}"
     event_name=$(basename "$event_device")
+    device_name=$(cat "/sys/class/input/${event_name}/device/name" 2>/dev/null) || true
     abs_caps=$(cat "/sys/class/input/${event_name}/device/capabilities/abs" 2>/dev/null) || true
+    key_caps=$(cat "/sys/class/input/${event_name}/device/capabilities/key" 2>/dev/null) || true
     if echo "$abs_caps" | grep -q '[1-9a-f]'; then
         [ -z "$POINTER_DEVICE" ] && POINTER_DEVICE="$event_device"
-        bashio::log.info "  ${event_device}: absolute axes detected (touchscreen/touchpad)"
-    else
+        bashio::log.info "  ${event_device}: absolute axes detected — touchscreen/touchpad (${device_name})"
+    elif echo "$key_caps" | grep -q '[1-9a-f]'; then
         [ -z "$KEYBOARD_DEVICE" ] && KEYBOARD_DEVICE="$event_device"
+        bashio::log.info "  ${event_device}: keyboard (${device_name})"
+    else
+        bashio::log.info "  ${event_device}: other device (${device_name})"
     fi
 done
+
+if [ -z "$POINTER_DEVICE" ]; then
+    bashio::log.warning "No touchscreen/touchpad detected — check USB cable and connection."
+    bashio::log.warning "For USB touchscreen monitors, ensure a data-capable cable is connected to the touch port."
+fi
 
 # Fallback: if no pointer found use second device; if no keyboard found use first
 FIRST_DEVICE=$(echo "$ALL_DEVICES" | awk '{print $1}')
@@ -254,6 +268,15 @@ if ! xset q >/dev/null 2>&1; then
 fi
 bashio::log.info "X started successfully..."
 
+# Log X input devices for diagnostics
+XINPUT_LIST=$(xinput list 2>/dev/null) || true
+if [ -n "$XINPUT_LIST" ]; then
+    bashio::log.info "X input devices:"
+    echo "$XINPUT_LIST" | while IFS= read -r line; do
+        bashio::log.info "  $line"
+    done
+fi
+
 #Stop console blinking cursor (this projects through the X-screen)
 echo -e "\033[?25l" > /dev/console
 
@@ -281,23 +304,70 @@ else
 fi
 
 ### Configure display resolution and brightness via xrandr
-# Note: fbdev driver has limited xrandr support; resolution is primarily
-# controlled by the RPi firmware (config.txt). These calls are best-effort.
 XRANDR_OUTPUT=$(xrandr --query 2>/dev/null | grep ' connected' | head -1 | awk '{print $1}') || true
 if [ -n "$XRANDR_OUTPUT" ]; then
-    PREFERRED_MODE=$(xrandr --query 2>/dev/null | grep -A1 "^${XRANDR_OUTPUT}" | tail -1 | awk '{print $1}') || true
-    if [ -n "$PREFERRED_MODE" ]; then
-        if xrandr --output "$XRANDR_OUTPUT" --mode "$PREFERRED_MODE" 2>/dev/null; then
-            bashio::log.info "Display resolution set to ${PREFERRED_MODE} on ${XRANDR_OUTPUT}..."
+    bashio::log.info "Display output detected: ${XRANDR_OUTPUT}"
+    CURRENT_MODE=$(xrandr --query 2>/dev/null | grep '\*' | head -1 | awk '{print $1}') || true
+    bashio::log.info "Current resolution: ${CURRENT_MODE:-unknown}"
+
+    # If user specified a resolution, try to force it
+    if [ -n "$SCREEN_RESOLUTION" ]; then
+        bashio::log.info "User-requested resolution: ${SCREEN_RESOLUTION}"
+        # Check if the mode already exists
+        if xrandr --query 2>/dev/null | grep -q "${SCREEN_RESOLUTION}"; then
+            if xrandr --output "$XRANDR_OUTPUT" --mode "$SCREEN_RESOLUTION" 2>/dev/null; then
+                bashio::log.info "Display resolution set to ${SCREEN_RESOLUTION} on ${XRANDR_OUTPUT}..."
+            else
+                bashio::log.warning "Failed to set resolution ${SCREEN_RESOLUTION} — driver may not support mode switching."
+            fi
         else
-            bashio::log.info "Display using native resolution (mode switching not supported by driver)..."
+            # Mode doesn't exist — try to create it with cvt modeline
+            bashio::log.info "Mode ${SCREEN_RESOLUTION} not available — attempting to create it..."
+            XRES=$(echo "$SCREEN_RESOLUTION" | cut -dx -f1)
+            YRES=$(echo "$SCREEN_RESOLUTION" | cut -dx -f2)
+            MODELINE=$(cvt "$XRES" "$YRES" 60 2>/dev/null | grep "Modeline" | sed 's/Modeline //' | sed 's/"//g') || true
+            if [ -n "$MODELINE" ]; then
+                MODE_NAME=$(echo "$MODELINE" | awk '{print $1}')
+                MODE_PARAMS=$(echo "$MODELINE" | cut -d' ' -f2-)
+                # shellcheck disable=SC2086
+                xrandr --newmode "$MODE_NAME" $MODE_PARAMS 2>/dev/null || true
+                xrandr --addmode "$XRANDR_OUTPUT" "$MODE_NAME" 2>/dev/null || true
+                if xrandr --output "$XRANDR_OUTPUT" --mode "$MODE_NAME" 2>/dev/null; then
+                    bashio::log.info "Display resolution set to ${SCREEN_RESOLUTION} (custom mode) on ${XRANDR_OUTPUT}..."
+                else
+                    bashio::log.warning "Failed to set custom mode ${SCREEN_RESOLUTION} — fbdev driver does not support mode creation."
+                    bashio::log.warning "To change resolution on RPi, set hdmi_group and hdmi_mode in /mnt/boot/config.txt."
+                fi
+            else
+                bashio::log.warning "Could not generate modeline for ${SCREEN_RESOLUTION} — cvt not available or invalid resolution."
+            fi
+        fi
+    else
+        # No user override — try preferred mode
+        PREFERRED_MODE=$(xrandr --query 2>/dev/null | grep -A1 "^${XRANDR_OUTPUT}" | tail -1 | awk '{print $1}') || true
+        if [ -n "$PREFERRED_MODE" ] && [ "$PREFERRED_MODE" != "$CURRENT_MODE" ]; then
+            if xrandr --output "$XRANDR_OUTPUT" --mode "$PREFERRED_MODE" 2>/dev/null; then
+                bashio::log.info "Display resolution set to ${PREFERRED_MODE} on ${XRANDR_OUTPUT}..."
+            else
+                bashio::log.info "Display using native resolution (mode switching not supported by driver)..."
+            fi
+        else
+            bashio::log.info "Display already at preferred resolution: ${CURRENT_MODE}"
         fi
     fi
+
+    # Software brightness adjustment
     BRIGHTNESS_VALUE=$(awk "BEGIN {printf \"%.2f\", ${SCREEN_BRIGHTNESS} / 100}") || true
     if [ -n "$BRIGHTNESS_VALUE" ] && xrandr --output "$XRANDR_OUTPUT" --brightness "$BRIGHTNESS_VALUE" 2>/dev/null; then
         bashio::log.info "Screen brightness set to ${SCREEN_BRIGHTNESS}%..."
     else
-        bashio::log.info "Software brightness not supported by driver — skipping..."
+        # Try xgamma as fallback for contrast/brightness
+        GAMMA_VALUE=$(awk "BEGIN {printf \"%.2f\", ${SCREEN_BRIGHTNESS} / 100}") || true
+        if [ -n "$GAMMA_VALUE" ] && xgamma -gamma "$GAMMA_VALUE" 2>/dev/null; then
+            bashio::log.info "Screen brightness set to ${SCREEN_BRIGHTNESS}% via gamma..."
+        else
+            bashio::log.info "Software brightness not supported by driver — skipping..."
+        fi
     fi
 else
     bashio::log.warning "No display output detected by xrandr — skipping resolution and brightness..."

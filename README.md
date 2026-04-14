@@ -43,6 +43,7 @@ All options are found in the add-on's **Configuration** tab.
 | **Login Delay** | `3.0` seconds | Delay to allow the login page to load before auto-login attempts begin. |
 | **HDMI Port** | `0` | HDMI output port (`0` or `1`). On stock HAOS on RPi, HDMI0 is mirrored to HDMI1. |
 | **Screen Timeout** | `600` seconds | Time before the screen blanks. Set to `0` to disable. |
+| **Screen Resolution** | `""` (auto) | Force a specific resolution (e.g., `1920x1080`). Leave empty for automatic detection. On RPi with fbdev, resolution is set by `config.txt` — see troubleshooting. |
 | **Screen Brightness** | `100`% | Software brightness via xrandr. `100` is full brightness, `0` is black. Not all drivers support this. |
 | **Browser Refresh** | `600` seconds | Interval between browser refreshes. Set to `0` to disable. Recommended to keep enabled as console errors may overwrite the dashboard on RPi. |
 | **Zoom Level** | `100`% | Browser zoom level. |
@@ -62,7 +63,14 @@ Then reboot. This sets the output to 1920×1080 at 60 Hz.
 
 ### Touchscreen not responding
 
-USB touchscreens (e.g., EVICIV portable monitors) send touch data via USB HID. Ensure you are using a **data-capable USB cable** — charge-only cables will not work. The touchscreen should appear as `/dev/input/event*` and will be detected automatically at startup (look for "absolute axes detected" in the add-on logs).
+USB touchscreens (e.g., EVICIV portable monitors) send touch data via USB HID. Ensure:
+
+1. **Use a data-capable USB cable** — charge-only cables will not work.
+2. **Connect to the correct port** — many portable monitors have two USB-C ports: one for power/display (DisplayPort Alt Mode) and one for **touch input**. Connect the touch port to a USB 3.0 port on the Pi.
+3. **Check add-on logs** — look for "absolute axes detected" in the startup output. If no touchscreen device is found, the logs will show a warning with troubleshooting guidance.
+4. **Verify the device is visible** — in an SSH session, run `ls /dev/input/event*` and `cat /proc/bus/input/devices` to confirm the touchscreen appears as an input device.
+
+If the touchscreen device index is above 19, please [open an issue](https://github.com/unkokaeru/HAOS-kiosk/issues) and we can expand the device list.
 
 ### Display does not appear
 

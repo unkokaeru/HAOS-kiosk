@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.5.0 – April 2026
+
+- Added `screen_resolution` configuration option with xrandr mode override and cvt modeline
+  generation for forcing a specific resolution (e.g., `1920x1080`)
+- Added xgamma fallback for software brightness when xrandr brightness is not supported
+- Added `xinput list` diagnostic logging after X starts to help debug input issues
+- Expanded device passthrough to event0–19 and hidraw0–4 for USB touchscreen monitors
+- Enhanced input device diagnostics with sysfs device names and touchscreen detection warnings
+- Added `xinput`, `xgamma` packages to Docker image
+- Updated documentation with screen resolution option and troubleshooting guidance
+
 ## v1.4.0 – April 2026
 
 - Fixed duplicate `mount` call that was unreachable under `set -e` error handling

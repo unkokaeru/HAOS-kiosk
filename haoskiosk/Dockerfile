@@ -21,6 +21,8 @@ RUN apk update && apk add --no-cache \
     util-linux \
     xset \
     xrandr \
+    xinput \
+    xgamma \
     bash \
     mesa-gles \
     mesa-egl \
