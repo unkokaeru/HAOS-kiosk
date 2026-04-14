@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.2.0 – April 2026
+
+- Fixed Screen sections referencing non-existent `FBDEV` device — now correctly
+  point to `FBDEV0` and `FBDEV1`, resolving resolution detection issues
+- Added `screen_brightness` configuration option (0–100) using xrandr software brightness
+- Display resolution now automatically set to the highest available mode via xrandr
+- Expanded input device support from 6 to 10 (`event0`–`event9`) for USB touchscreens
+- Added `xrandr` package to the container
+
 ## v1.1.2 – April 2026
 
 - Installed `mesa-gles` and `mesa-egl` to provide `libGLESv2.so.2` — prevents WebKit
