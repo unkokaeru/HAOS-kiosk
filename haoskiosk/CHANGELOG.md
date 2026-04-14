@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.2.1 – April 2026
+
+- Fixed startup crash caused by `xrandr --brightness` failing under the `fbdev` driver —
+  all xrandr calls are now non-fatal with graceful fallback logging
+
 ## v1.2.0 – April 2026
 
 - Fixed Screen sections referencing non-existent `FBDEV` device — now correctly
