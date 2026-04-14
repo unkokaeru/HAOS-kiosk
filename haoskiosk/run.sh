@@ -107,7 +107,7 @@ for event_device in /dev/input/event*; do
     cat >> "$XORG_INPUT_CONF" << INPUTEOF
 Section "InputDevice"
     Identifier    "${device_id}"
-    Driver        "libinput"
+    Driver        "evdev"
     Option        "Device" "${event_device}"
 EndSection
 
