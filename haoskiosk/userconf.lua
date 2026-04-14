@@ -78,35 +78,50 @@ webview.add_signal("init", function(view)
                         var result = root.querySelector(selector);
                         if (result) return result;
                         var elements = root.querySelectorAll('*');
-                        for (var i = 0; i < elements.length; i++) {
-                            if (elements[i].shadowRoot) {
-                                result = deepQuery(elements[i].shadowRoot, selector);
+                        for (var index = 0; index < elements.length; index++) {
+                            if (elements[index].shadowRoot) {
+                                result = deepQuery(elements[index].shadowRoot, selector);
                                 if (result) return result;
                             }
                         }
                         return null;
                     }
+                    var nativeSetter = Object.getOwnPropertyDescriptor(
+                        HTMLInputElement.prototype, 'value'
+                    ).set;
                     var attempts = 0;
                     var maxAttempts = 50;
+                    var pollInterval = %d;
                     var interval = setInterval(function() {
                         attempts++;
                         var usernameField = deepQuery(document, 'input[name="username"]');
                         var passwordField = deepQuery(document, 'input[name="password"]');
                         if (usernameField && passwordField) {
                             clearInterval(interval);
-                            usernameField.value = "%s";
-                            passwordField.value = "%s";
-                            usernameField.dispatchEvent(new Event('input', {bubbles: true}));
-                            passwordField.dispatchEvent(new Event('input', {bubbles: true}));
+                            nativeSetter.call(usernameField, "%s");
+                            nativeSetter.call(passwordField, "%s");
+                            usernameField.dispatchEvent(new Event('input', {bubbles: true, composed: true}));
+                            usernameField.dispatchEvent(new Event('change', {bubbles: true, composed: true}));
+                            passwordField.dispatchEvent(new Event('input', {bubbles: true, composed: true}));
+                            passwordField.dispatchEvent(new Event('change', {bubbles: true, composed: true}));
                             setTimeout(function() {
-                                var submit = deepQuery(document, 'mwc-button') || deepQuery(document, 'ha-button') || deepQuery(document, 'button[type="submit"]');
-                                if (submit) submit.click();
+                                var submit = deepQuery(document, 'mwc-button')
+                                    || deepQuery(document, 'ha-button')
+                                    || deepQuery(document, 'button[type="submit"]');
+                                if (submit) {
+                                    submit.click();
+                                } else {
+                                    passwordField.dispatchEvent(new KeyboardEvent('keydown', {
+                                        key: 'Enter', code: 'Enter', keyCode: 13,
+                                        bubbles: true, composed: true
+                                    }));
+                                }
                             }, 500);
                         }
                         if (attempts >= maxAttempts) clearInterval(interval);
-                    }, %d);
+                    }, pollInterval);
                 })();
-            ]], escape_for_javascript(username), escape_for_javascript(password), login_delay * 1000 / 50)
+            ]], login_delay * 1000 / 50, escape_for_javascript(username), escape_for_javascript(password))
             v:eval_js(js_auto_login, { source = "auto_login.js" })  -- Execute the login script
         end
 
