@@ -6,7 +6,7 @@ trap '[ -n "$(jobs -p)" ] && kill $(jobs -p); [ -n "$TTY0_DELETED" ] && mknod -m
 ################################################################################
 # Add-on: HAOS Kiosk Display (haoskiosk)
 # File: run.sh
-# Version: 1.1.0
+# Version: 1.1.1
 # Originally by Jeff Kosowsky, maintained by William Fayers
 # Date: April 2025
 #

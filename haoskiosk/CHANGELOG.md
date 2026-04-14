@@ -1,9 +1,14 @@
 # Changelog
 
+## v1.1.1 – April 2026
+
+- Switched dynamic input devices from `libinput` to `evdev` driver — `libinput` requires
+  `udev` device initialisation which is unavailable in Docker containers
+
 ## v1.1.0 – April 2026
 
 - Dynamic input device detection at startup — all `/dev/input/event*` devices are now
-  auto-configured with libinput, replacing fragile hardcoded evdev mappings
+  auto-configured with evdev, replacing fragile hardcoded mappings
 - Touchscreen, touchpad, keyboard, and mouse are all handled automatically regardless
   of device numbering
 - Added `-allowMouseOpenFail` flag to Xorg for resilience when devices are absent
