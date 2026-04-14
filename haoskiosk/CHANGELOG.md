@@ -1,5 +1,16 @@
 # Changelog
 
+## v1.3.0 – April 2026
+
+- Smart input device detection — reads kernel capabilities (`/sys/class/input/`)
+  to identify touchscreens (absolute axes) and assign them as `CorePointer` instead
+  of blindly assigning the first device as `CoreKeyboard`
+- Auto-detects DRI/KMS devices and switches from `fbdev` to `modesetting` driver for
+  proper resolution support (e.g., 1080p on EVICIV portable monitors)
+- Added `/dev/dri/card0`, `/dev/dri/card1`, `/dev/dri/renderD128` to device access list
+- Expanded input device support to `event0`–`event9` for USB peripherals
+- Logs which devices have absolute axes (touchscreen/touchpad) during startup
+
 ## v1.2.1 – April 2026
 
 - Fixed startup crash caused by `xrandr --brightness` failing under the `fbdev` driver —
