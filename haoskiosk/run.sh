@@ -93,6 +93,30 @@ mkdir -p "$XORG_INPUT_DIR"
 XORG_INPUT_CONF="${XORG_INPUT_DIR}/10-input-devices.conf"
 : > "$XORG_INPUT_CONF"
 
+# First pass: identify device capabilities to assign correct roles
+POINTER_DEVICE=""
+KEYBOARD_DEVICE=""
+ALL_DEVICES=""
+for event_device in /dev/input/event*; do
+    [ -e "$event_device" ] || continue
+    ALL_DEVICES="${ALL_DEVICES} ${event_device}"
+    event_name=$(basename "$event_device")
+    abs_caps=$(cat "/sys/class/input/${event_name}/device/capabilities/abs" 2>/dev/null) || true
+    if echo "$abs_caps" | grep -q '[1-9a-f]'; then
+        [ -z "$POINTER_DEVICE" ] && POINTER_DEVICE="$event_device"
+        bashio::log.info "  ${event_device}: absolute axes detected (touchscreen/touchpad)"
+    else
+        [ -z "$KEYBOARD_DEVICE" ] && KEYBOARD_DEVICE="$event_device"
+    fi
+done
+
+# Fallback: if no pointer found use second device; if no keyboard found use first
+FIRST_DEVICE=$(echo $ALL_DEVICES | awk '{print $1}')
+SECOND_DEVICE=$(echo $ALL_DEVICES | awk '{print $2}')
+: "${KEYBOARD_DEVICE:=${FIRST_DEVICE}}"
+: "${POINTER_DEVICE:=${SECOND_DEVICE:-${FIRST_DEVICE}}}"
+
+# Second pass: generate InputDevice sections with capability-based roles
 DEVICE_COUNT=0
 LAYOUT_LINES=""
 for event_device in /dev/input/event*; do
@@ -100,10 +124,10 @@ for event_device in /dev/input/event*; do
     DEVICE_COUNT=$((DEVICE_COUNT + 1))
     device_id="Input${DEVICE_COUNT}"
 
-    if [ "$DEVICE_COUNT" -eq 1 ]; then
-        role='"CoreKeyboard"'
-    elif [ "$DEVICE_COUNT" -eq 2 ]; then
+    if [ "$event_device" = "$POINTER_DEVICE" ]; then
         role='"CorePointer"'
+    elif [ "$event_device" = "$KEYBOARD_DEVICE" ]; then
+        role='"CoreKeyboard"'
     else
         role='"SendCoreEvents"'
     fi
@@ -142,6 +166,20 @@ LAYOUTEOF
 done
 
 bashio::log.info "Configured ${DEVICE_COUNT} input device(s)..."
+
+### Auto-detect DRI/KMS and switch to modesetting driver for proper resolution
+DRI_DEVICE=""
+for dri_card in /dev/dri/card*; do
+    [ -e "$dri_card" ] && DRI_DEVICE="$dri_card" && break
+done
+
+if [ -n "$DRI_DEVICE" ]; then
+    bashio::log.info "Found DRI device ${DRI_DEVICE} — switching to modesetting driver..."
+    sed -i 's/Driver.*"fbdev"/Driver        "modesetting"/' /etc/X11/xorg.conf
+    sed -i '/Option.*"fbdev"/d' /etc/X11/xorg.conf
+else
+    bashio::log.info "No DRI device found — using fbdev driver (resolution set by firmware)..."
+fi
 
 #Note first need to delete /dev/tty0 since X won't start if it is there,
 #because X doesn't have permissions to access it in the container
