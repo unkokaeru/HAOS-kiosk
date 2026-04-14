@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.4.0 – April 2026
+
+- Fixed duplicate `mount` call that was unreachable under `set -e` error handling
+- Fixed unquoted variable expansion in device detection (`$ALL_DEVICES`)
+- Removed extra whitespace in `rm` condition
+- Corrected file header date from 2025 to 2026 and added missing `SCREEN_BRIGHTNESS` variable
+- Added clarifying comments to `xorg.conf` explaining inactive `libinput` InputClass sections
+- Fixed indentation alignment in `userconf.lua` header
+- Updated both READMEs with comprehensive feature list, troubleshooting section, and
+  `Screen Brightness` configuration option
+- Corrected "License" → "Licence" (Oxford UK spelling)
+
 ## v1.3.1 – April 2026
 
 - Modesetting driver now falls back gracefully to fbdev if X fails to start
