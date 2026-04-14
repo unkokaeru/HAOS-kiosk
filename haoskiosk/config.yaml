@@ -22,6 +22,10 @@ devices:
   - /dev/input/event3
   - /dev/input/event4
   - /dev/input/event5
+  - /dev/input/event6
+  - /dev/input/event7
+  - /dev/input/event8
+  - /dev/input/event9
 
 privileged:
   - SYS_ADMIN
@@ -36,6 +40,7 @@ options:
   screen_timeout: 600
   browser_refresh: 600
   zoom_level: 100
+  screen_brightness: 100
 
 schema:
   ha_username: str
@@ -47,6 +52,7 @@ schema:
   screen_timeout: int(0,)
   browser_refresh: int(0,)
   zoom_level: int(0,)
+  screen_brightness: int(0,100)
 
 environment:
   DISPLAY: ":0"

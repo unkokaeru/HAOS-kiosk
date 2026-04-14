@@ -20,6 +20,7 @@ RUN apk update && apk add --no-cache \
     ttf-dejavu \
     util-linux \
     xset \
+    xrandr \
     bash \
     mesa-gles \
     mesa-egl \

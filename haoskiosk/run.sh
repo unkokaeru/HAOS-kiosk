@@ -62,6 +62,10 @@ SCREEN_TIMEOUT=$(bashio::config 'screen_timeout')
 SCREEN_TIMEOUT="${SCREEN_TIMEOUT//null/}"
 SCREEN_TIMEOUT="${SCREEN_TIMEOUT:-600}" #Default to 600 seconds
 
+SCREEN_BRIGHTNESS=$(bashio::config 'screen_brightness')
+SCREEN_BRIGHTNESS="${SCREEN_BRIGHTNESS//null/}"
+SCREEN_BRIGHTNESS="${SCREEN_BRIGHTNESS:-100}" #Default to 100%
+
 HDMI_PORT=$(bashio::config 'hdmi_port')
 HDMI_PORT="${HDMI_PORT//null/}"
 HDMI_PORT="${HDMI_PORT:-0}"
@@ -208,6 +212,21 @@ else
     xset dpms "$SCREEN_TIMEOUT" "$SCREEN_TIMEOUT" "$SCREEN_TIMEOUT"  #DPMS standby, suspend, off
     xset +dpms
     bashio::log.info "Screen timeout after $SCREEN_TIMEOUT seconds..."
+fi
+
+### Configure display resolution and brightness via xrandr
+XRANDR_OUTPUT=$(xrandr --query 2>/dev/null | grep ' connected' | head -1 | awk '{print $1}')
+if [ -n "$XRANDR_OUTPUT" ]; then
+    PREFERRED_MODE=$(xrandr --query 2>/dev/null | grep -A1 "^${XRANDR_OUTPUT}" | tail -1 | awk '{print $1}')
+    if [ -n "$PREFERRED_MODE" ]; then
+        xrandr --output "$XRANDR_OUTPUT" --mode "$PREFERRED_MODE" 2>/dev/null
+        bashio::log.info "Display resolution set to ${PREFERRED_MODE} on ${XRANDR_OUTPUT}..."
+    fi
+    BRIGHTNESS_VALUE=$(awk "BEGIN {printf \"%.2f\", ${SCREEN_BRIGHTNESS} / 100}")
+    xrandr --output "$XRANDR_OUTPUT" --brightness "$BRIGHTNESS_VALUE" 2>/dev/null
+    bashio::log.info "Screen brightness set to ${SCREEN_BRIGHTNESS}%..."
+else
+    bashio::log.warning "No display output detected by xrandr — skipping resolution and brightness..."
 fi
 
 ### Run Luakit in the foreground
