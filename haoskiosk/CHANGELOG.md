@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.3.1 – April 2026
+
+- Modesetting driver now falls back gracefully to fbdev if X fails to start
+  (RPi DRI devices are present but may not support modesetting in containers)
+- X startup wrapped in retry function with proper process cleanup
+- Backs up xorg.conf before modifying, restores on fallback
+
 ## v1.3.0 – April 2026
 
 - Smart input device detection — reads kernel capabilities (`/sys/class/input/`)

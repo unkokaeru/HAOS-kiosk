@@ -6,7 +6,7 @@ trap '[ -n "$(jobs -p)" ] && kill $(jobs -p); [ -n "$TTY0_DELETED" ] && mknod -m
 ################################################################################
 # Add-on: HAOS Kiosk Display (haoskiosk)
 # File: run.sh
-# Version: 1.3.0
+# Version: 1.3.1
 # Originally by Jeff Kosowsky, maintained by William Fayers
 # Date: April 2025
 #
@@ -82,9 +82,6 @@ fi
 ################################################################################
 ### Start D-Bus session in the background (otherwise luakit hangs for 5 minutes before starting)
 dbus-daemon --session --address="$DBUS_SESSION_BUS_ADDRESS" &
-
-### Start Xorg in the background
-rm -rf /tmp/.X*-lock #Cleanup old versions
 
 ### Dynamically detect and configure input devices for Xorg
 bashio::log.info "Detecting input devices..."
@@ -167,14 +164,18 @@ done
 
 bashio::log.info "Configured ${DEVICE_COUNT} input device(s)..."
 
-### Auto-detect DRI/KMS and switch to modesetting driver for proper resolution
+### Auto-detect DRI/KMS for modesetting driver (with fbdev fallback)
 DRI_DEVICE=""
 for dri_card in /dev/dri/card*; do
     [ -e "$dri_card" ] && DRI_DEVICE="$dri_card" && break
 done
 
+USE_MODESETTING=""
 if [ -n "$DRI_DEVICE" ]; then
-    bashio::log.info "Found DRI device ${DRI_DEVICE} — switching to modesetting driver..."
+    bashio::log.info "Found DRI device ${DRI_DEVICE} — will attempt modesetting driver..."
+    USE_MODESETTING=1
+    # Back up original xorg.conf so we can revert on failure
+    cp /etc/X11/xorg.conf /etc/X11/xorg.conf.fbdev
     sed -i 's/Driver.*"fbdev"/Driver        "modesetting"/' /etc/X11/xorg.conf
     sed -i '/Option.*"fbdev"/d' /etc/X11/xorg.conf
 else
@@ -201,15 +202,42 @@ if [ -e "/dev/tty0" ]; then
     bashio::log.info "Deleted /dev/tty0 successfully..."
 fi
 
-Xorg "$DISPLAY" -allowMouseOpenFail -layout "Layout${HDMI_PORT}" </dev/null &
+### Start X server (with modesetting→fbdev fallback)
+start_xorg() {
+    rm -rf /tmp/.X*-lock /tmp/.X11-unix 2>/dev/null || true
+    Xorg "$DISPLAY" -allowMouseOpenFail -layout "Layout${HDMI_PORT}" </dev/null &
+    XORG_PID=$!
+    local timeout=15
+    for ((i=0; i<=timeout; i++)); do
+        # Check if Xorg process died
+        if ! kill -0 "$XORG_PID" 2>/dev/null; then
+            return 1
+        fi
+        if xset q >/dev/null 2>&1; then
+            return 0
+        fi
+        sleep 1
+    done
+    # Timed out — kill and report failure
+    kill "$XORG_PID" 2>/dev/null || true
+    wait "$XORG_PID" 2>/dev/null || true
+    return 1
+}
 
-XSTARTUP=30
-for ((attempt=0; attempt<=XSTARTUP; attempt++)); do
-    if xset q >/dev/null 2>&1; then
-        break
+if ! start_xorg; then
+    if [ -n "$USE_MODESETTING" ]; then
+        bashio::log.warning "Modesetting driver failed — falling back to fbdev..."
+        cp /etc/X11/xorg.conf.fbdev /etc/X11/xorg.conf
+        USE_MODESETTING=""
+        if ! start_xorg; then
+            bashio::log.error "Error: X server failed to start with both modesetting and fbdev drivers."
+            exit 1
+        fi
+    else
+        bashio::log.error "Error: X server failed to start."
+        exit 1
     fi
-    sleep 1
-done
+fi
 
 #Restore /dev/tty0 and 'ro' mode for /dev if deleted
 if [ -n "$TTY0_DELETED" ]; then
@@ -221,7 +249,7 @@ if [ -n "$TTY0_DELETED" ]; then
 fi
 
 if ! xset q >/dev/null 2>&1; then
-    bashio::log.error "Error: X server failed to start within $XSTARTUP seconds."
+    bashio::log.error "Error: X server failed to start."
     exit 1
 fi
 bashio::log.info "X started successfully..."
